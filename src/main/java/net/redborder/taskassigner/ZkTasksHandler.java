@@ -124,16 +124,18 @@ public class ZkTasksHandler extends TasksHandler {
             byte[] zkData = client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/workers/" + hostname);
             client.delete().forPath(TASKS_ZK_PATH + "/workers/" + hostname);
             System.out.println("Exists old state, I recovery and create again!");
-            client.create().withMode(CreateMode.EPHEMERAL).forPath(TASKS_ZK_PATH + "/workers/" + hostname, zkData);
-            client.getData().usingWatcher(tasksWatcher).forPath(TASKS_ZK_PATH + "/workers/" + hostname);
+            client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/workers/" + hostname, zkData);
+            client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/workers/" + hostname);
 
             // Read data from ZK and assign those tasks
             List<Map<String, Object>> maps = (List<Map<String, Object>>) mapper.readValue(zkData, List.class);
             List<Task> tasks = new ArrayList<>();
 
             for(Map<String, Object> map : maps){
-
+                MappedTask task = new MappedTask(map);
+                tasks.add(task);
             }
+
             setAssignedTasks(tasks);
         }
 

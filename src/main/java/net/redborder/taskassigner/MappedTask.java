@@ -13,6 +13,10 @@ public class MappedTask implements Task {
         map = new HashMap<>();
     }
 
+    public MappedTask(Map<? extends String, ? extends Object> m){
+        initialize(m);
+    }
+
     @Override
     public void initialize(Map<? extends String, ? extends Object> m) {
         map.putAll(m);
