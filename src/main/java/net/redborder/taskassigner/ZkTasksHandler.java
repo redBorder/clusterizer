@@ -122,7 +122,7 @@ public class ZkTasksHandler extends TasksHandler {
             client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/workers/" + hostname);
         } else {
             byte[] zkData = client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/workers/" + hostname);
-            client.delete().forPath(TASKS_ZK_PATH + "/workers/" + hostname);
+            client.delete().forPath(zk_path + "/workers/" + hostname);
             System.out.println("Exists old state, I recovery and create again!");
             client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/workers/" + hostname, zkData);
             client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/workers/" + hostname);
