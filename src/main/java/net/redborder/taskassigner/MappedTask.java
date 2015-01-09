@@ -14,6 +14,7 @@ public class MappedTask implements Task {
     }
 
     public MappedTask(Map<? extends String, ? extends Object> m){
+        map = new HashMap<>();
         initialize(m);
     }
 
