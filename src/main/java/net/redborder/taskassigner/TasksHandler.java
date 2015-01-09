@@ -37,7 +37,14 @@ public abstract class TasksHandler {
     }
 
     public void setAssignedTasks(List<Task> tasks) {
-        System.out.println("Updated node tasks: " + tasks);
+        String taskStr = "[ ";
+
+        for(Task task : tasks){
+            taskStr = taskStr + task.asMap() + " ";
+        }
+        taskStr = taskStr + "]";
+
+        System.out.println("Updated node tasks: " + taskStr);
 
         this.assignedTasks = tasks;
 
