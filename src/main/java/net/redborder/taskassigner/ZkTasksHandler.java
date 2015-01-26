@@ -131,7 +131,7 @@ public class ZkTasksHandler extends TasksHandler {
             List<Map<String, Object>> maps = (List<Map<String, Object>>) mapper.readValue(zkData, List.class);
             List<Task> tasks = new ArrayList<>();
 
-            for(Map<String, Object> map : maps){
+            for (Map<String, Object> map : maps) {
                 MappedTask task = new MappedTask(map);
                 tasks.add(task);
             }
@@ -193,19 +193,21 @@ public class ZkTasksHandler extends TasksHandler {
             int current = 0;
 
             for (Task task : tasks) {
-                String worker = workers.get(current);
-                List<Map<String, Object>> taskList = (List<Map<String, Object>>) assignments.get(worker);
+                if (workers.size() > 0) {
+                    String worker = workers.get(current);
+                    List<Map<String, Object>> taskList = (List<Map<String, Object>>) assignments.get(worker);
 
-                if (taskList == null) {
-                    taskList = new ArrayList<>();
-                    assignments.put(worker, taskList);
-                }
+                    if (taskList == null) {
+                        taskList = new ArrayList<>();
+                        assignments.put(worker, taskList);
+                    }
 
-                taskList.add(task.asMap());
+                    taskList.add(task.asMap());
 
-                current++;
-                if (current >= workers_length) {
-                    current = 0;
+                    current++;
+                    if (current >= workers_length) {
+                        current = 0;
+                    }
                 }
             }
 
@@ -252,7 +254,7 @@ public class ZkTasksHandler extends TasksHandler {
             monitorNotify();
         }
 
-        private void monitorNotify(){
+        private void monitorNotify() {
             synchronized (monitor) {
                 monitor.notifyAll();
             }
@@ -297,7 +299,7 @@ public class ZkTasksHandler extends TasksHandler {
                 List<Map<String, Object>> maps = (List<Map<String, Object>>) mapper.readValue(data, List.class);
                 List<Task> tasks = new ArrayList<>();
 
-                for(Map<String, Object> map : maps){
+                for (Map<String, Object> map : maps) {
                     MappedTask task = new MappedTask();
                     task.initialize(map);
                     tasks.add(task);
