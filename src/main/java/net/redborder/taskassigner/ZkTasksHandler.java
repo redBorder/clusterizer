@@ -169,6 +169,15 @@ public class ZkTasksHandler extends TasksHandler {
 
     }
 
+    @Override
+    public void wakeup() {
+        tasksAssigner.assign();
+    }
+
+    public boolean isLeader(){
+        return latch.hasLeadership();
+    }
+
     private class TasksAssigner extends Thread {
 
         private boolean running;

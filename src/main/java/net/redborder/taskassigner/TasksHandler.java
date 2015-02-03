@@ -53,6 +53,8 @@ public abstract class TasksHandler {
         }
     }
 
+    public abstract void wakeup();
+
     public abstract void end();
 
     public abstract void reload();
