@@ -174,6 +174,18 @@ public class ZkTasksHandler extends TasksHandler {
         tasksAssigner.assign();
     }
 
+    @Override
+    public Integer numWorkers() {
+        Integer num;
+        try {
+            num =  client.getChildren().forPath(zk_path + "/workers").size();
+        } catch (Exception e) {
+            e.printStackTrace();
+            num = 0;
+        }
+        return num;
+    }
+
     public boolean isLeader(){
         return latch.hasLeadership();
     }
@@ -269,6 +281,7 @@ public class ZkTasksHandler extends TasksHandler {
             }
         }
     }
+
 
     private class WorkersWatcher implements CuratorWatcher {
 
