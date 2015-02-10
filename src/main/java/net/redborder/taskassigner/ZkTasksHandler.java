@@ -152,10 +152,15 @@ public class ZkTasksHandler extends TasksHandler {
         latch.addListener(new LeaderLatchListener() {
             @Override
             public void isLeader() {
-                System.out.println("Im leading now, so lets assign the tasks again");
+                System.out.print("Im leading now, so lets assign the tasks again");
 
                 try {
-                    tasksAssigner.assign();
+                    if (tasks.size() > 0) {
+                        wakeup();
+                        System.out.println("");
+                    } else {
+                        System.out.println(", but I haven't tasks to assign.");
+                    }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -178,7 +183,7 @@ public class ZkTasksHandler extends TasksHandler {
     public Integer numWorkers() {
         Integer num;
         try {
-            num =  client.getChildren().forPath(zk_path + "/workers").size();
+            num = client.getChildren().forPath(zk_path + "/workers").size();
         } catch (Exception e) {
             e.printStackTrace();
             num = 0;
@@ -186,7 +191,7 @@ public class ZkTasksHandler extends TasksHandler {
         return num;
     }
 
-    public boolean isLeader(){
+    public boolean isLeader() {
         return latch.hasLeadership();
     }
 
