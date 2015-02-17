@@ -8,7 +8,7 @@ import org.apache.curator.framework.imps.CuratorFrameworkState;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import org.apache.curator.framework.recipes.leader.LeaderLatchListener;
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreMutex;
-import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.curator.retry.RetryNTimes;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -44,7 +44,7 @@ public class ZkTasksHandler extends TasksHandler {
     }
 
     public ZkTasksHandler(String zkHosts, String task_zk_path) {
-        retryPolicy = new ExponentialBackoffRetry(1000, 3);
+        retryPolicy = new RetryNTimes(Integer.MAX_VALUE, 30000);
         mapper = new ObjectMapper();
         listeners = new ArrayList<>();
         workersWatcher = new WorkersWatcher();
