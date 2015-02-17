@@ -237,6 +237,13 @@ public class ZkTasksHandler extends TasksHandler {
                 }
             }
 
+            while (assignments.size() < workers_length) {
+                String worker = workers.get(current);
+                List<Map<String, Object>> taskList = new ArrayList<>();
+                assignments.put(worker, taskList);
+                current++;
+            }
+
             // Write the assigned sensors on ZK
             String task_assigned = "Assigning tasks: ";
             for (Map.Entry<String, Object> assignedTasks : assignments.entrySet()) {
