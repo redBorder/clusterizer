@@ -3,25 +3,34 @@ package net.redborder.taskassigner;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 /**
  * Created by crodriguez on 9/12/14.
  */
 public abstract class TasksHandler {
 
-    List<TasksChangedListener> listeners;
+    List<TasksChangedListener> listenersTask;
+    List<NotifyListener> listenersNotify;
     List<Task> tasks;
     List<Task> assignedTasks;
+    Random random;
 
 
     public TasksHandler() {
-        listeners = new ArrayList<>();
+        listenersTask = new ArrayList<>();
+        listenersNotify = new ArrayList<>();
+        random = new Random();
     }
 
     // Adds a listener that will be notified when the tasks of
     // this instance change.
     public void addListener(TasksChangedListener listener) {
-        listeners.add(listener);
+        listenersTask.add(listener);
+    }
+
+    public void addListener(NotifyListener listener) {
+        listenersNotify.add(listener);
     }
 
     public List<Task> getTasks() {
@@ -36,10 +45,16 @@ public abstract class TasksHandler {
         this.tasks = tasks;
     }
 
+    public void mustWork() {
+        for (NotifyListener listener : listenersNotify)
+            listener.time2Work();
+    }
+
+
     public void setAssignedTasks(List<Task> tasks) {
         String taskStr = "[ ";
 
-        for(Task task : tasks){
+        for (Task task : tasks) {
             taskStr = taskStr + task.asMap() + " ";
         }
         taskStr = taskStr + "]";
@@ -48,12 +63,14 @@ public abstract class TasksHandler {
 
         this.assignedTasks = tasks;
 
-        for (TasksChangedListener listener : listeners) {
+        for (TasksChangedListener listener : listenersTask) {
             listener.updateTasks(tasks);
         }
     }
 
     public abstract void wakeup();
+
+    public abstract void goToWork(boolean waitWorkers);
 
     public abstract Integer numWorkers();
 

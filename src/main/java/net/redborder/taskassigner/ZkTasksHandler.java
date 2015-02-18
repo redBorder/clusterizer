@@ -15,10 +15,8 @@ import org.apache.zookeeper.Watcher;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.nio.ByteBuffer;
+import java.util.*;
 
 /**
  * Created by crodriguez on 9/12/14.
@@ -35,6 +33,11 @@ public class ZkTasksHandler extends TasksHandler {
     WorkersWatcher workersWatcher;
     TasksWatcher tasksWatcher;
     TasksAssigner tasksAssigner;
+    NotifyWatcher notifyWatcher;
+
+    Object notWorkers;
+
+    Long job_id;
 
     private static final String TASKS_ZK_PATH = "/rBtask";
     private String zk_path;
@@ -46,16 +49,27 @@ public class ZkTasksHandler extends TasksHandler {
     public ZkTasksHandler(String zkHosts, String task_zk_path) {
         retryPolicy = new RetryNTimes(Integer.MAX_VALUE, 30000);
         mapper = new ObjectMapper();
-        listeners = new ArrayList<>();
+
+        listenersTask = new ArrayList<>();
+        listenersNotify = new ArrayList<>();
+        random = new Random();
+        job_id = 0L;
+
+        notWorkers = new Object();
+
         workersWatcher = new WorkersWatcher();
         tasksWatcher = new TasksWatcher();
+        notifyWatcher = new NotifyWatcher();
+
         tasksAssigner = new TasksAssigner();
         client = null;
+
         this.zkHosts = zkHosts;
         this.zk_path = task_zk_path;
 
         tasksAssigner.init();
         tasksAssigner.start();
+
 
         try {
             hostname = InetAddress.getLocalHost().getHostName();
@@ -92,6 +106,7 @@ public class ZkTasksHandler extends TasksHandler {
     }
 
     private void init() throws Exception {
+        System.out.println("Initialite ZkTasksHandler ....");
         // Connect to ZK
         client = CuratorFrameworkFactory.newClient(zkHosts, retryPolicy);
         client.start();
@@ -109,23 +124,60 @@ public class ZkTasksHandler extends TasksHandler {
             client.create().forPath(zk_path);
         }
 
+        mutex.release();
+
+        initWorkers();
+        initTasks();
+        initNotifies();
+
+        // Start latch so a leader can be selected
+        latch.start();
+        System.out.println("ZkTasksHandler done!");
+    }
+
+    private void initWorkers() throws Exception {
+        System.out.print("Initialite ZkTasksHandler[Workers] .... ");
+        mutex.acquire();
+
         if (client.checkExists().forPath(zk_path + "/workers") == null) {
             client.create().forPath(zk_path + "/workers");
         }
-
 
         // Write myself to the workers register
         // Writing itself to the workers path will make the leader to assign this
         // instance a number of tasks to process
         if (client.checkExists().forPath(zk_path + "/workers/" + hostname) == null) {
             client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/workers/" + hostname);
-            client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/workers/" + hostname);
+        }
+
+        // Set a watch over workers nodes
+        client.getChildren().usingWatcher(workersWatcher).forPath(zk_path + "/workers");
+        mutex.release();
+        System.out.println(" Done!");
+    }
+
+    private void initTasks() throws Exception {
+        System.out.print("Initialite ZkTasksHandler[Tasks] .... ");
+        mutex.acquire();
+
+        tasks = new ArrayList<>();
+
+        if (client.checkExists().forPath(zk_path + "/tasks") == null) {
+            client.create().forPath(zk_path + "/tasks");
+        }
+
+        // Write myself to the workers register
+        // Writing itself to the workers path will make the leader to assign this
+        // instance a number of tasks to process
+        if (client.checkExists().forPath(zk_path + "/tasks/" + hostname) == null) {
+            client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/tasks/" + hostname);
+            client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/tasks/" + hostname);
         } else {
-            byte[] zkData = client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/workers/" + hostname);
-            client.delete().forPath(zk_path + "/workers/" + hostname);
+            byte[] zkData = client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/tasks/" + hostname);
+            client.delete().forPath(zk_path + "/tasks/" + hostname);
             System.out.println("Exists old state, I recovery and create again!");
-            client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/workers/" + hostname, zkData);
-            client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/workers/" + hostname);
+            client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/tasks/" + hostname, zkData);
+            client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/tasks/" + hostname);
 
             // Read data from ZK and assign those tasks
             List<Map<String, Object>> maps = (List<Map<String, Object>>) mapper.readValue(zkData, List.class);
@@ -139,12 +191,7 @@ public class ZkTasksHandler extends TasksHandler {
             setAssignedTasks(tasks);
         }
 
-        // Set a watch over workers nodes
-        client.getChildren().usingWatcher(workersWatcher).forPath(zk_path + "/workers");
         mutex.release();
-
-        // Start latch so a leader can be selected
-        latch.start();
 
         // Leader latch listeners.
         // When a new leader is assigned (because the leader has fallen) then the task
@@ -172,11 +219,43 @@ public class ZkTasksHandler extends TasksHandler {
             }
         });
 
+        System.out.println(" Done!");
+    }
+
+    private void initNotifies() throws Exception {
+        System.out.print("Initialite ZkTasksHandler[Notifies] .... ");
+        mutex.acquire();
+
+        if (client.checkExists().forPath(zk_path + "/notifies") == null) {
+            client.create().forPath(zk_path + "/notifies");
+        }
+
+        // Write myself to the workers register
+        // Writing itself to the workers path will make the leader to assign this
+        // instance a number of tasks to process
+        if (client.checkExists().forPath(zk_path + "/notifies/" + hostname) == null) {
+            client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/notifies/" + hostname);
+            client.getData().usingWatcher(notifyWatcher).forPath(zk_path + "/notifies/" + hostname);
+        } else {
+            client.getData().usingWatcher(notifyWatcher).forPath(zk_path + "/notifies/" + hostname);
+        }
+
+        mutex.release();
+        System.out.println(" Done! ");
     }
 
     @Override
     public void wakeup() {
         tasksAssigner.assign();
+    }
+
+    @Override
+    public void goToWork(boolean waitWorkers) {
+        try {
+            tasksAssigner.go2Work(waitWorkers);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -202,6 +281,40 @@ public class ZkTasksHandler extends TasksHandler {
 
         public TasksAssigner() {
             monitor = new Object();
+        }
+
+        public void go2Work(boolean waitWorkers) throws Exception {
+            mutex.acquire();
+            System.out.print("Is time to work! ");
+            List<String> workers = client.getChildren().forPath(zk_path + "/notifies");
+            boolean someone = false;
+
+            if (waitWorkers) {
+                if (workers.size() == 0) {
+                    System.out.println("Nobody wants work, I'm waiting");
+                    synchronized (notWorkers) {
+                        notWorkers.wait();
+                    }
+                }
+                workers = client.getChildren().forPath(zk_path + "/notifies");
+                someone = true;
+            } else {
+                if (workers.size() == 0) {
+                    System.out.println("Nobody wants work, I will forget this job");
+                }else{
+                    someone = true;
+                }
+            }
+
+            if (someone) {
+                Random r = new Random();
+                String worker = workers.get(r.nextInt(workers.size()));
+                System.out.println(" --> Today must work [" + worker + "]");
+                System.out.println("SIZE: " + workers.size());
+                client.delete().forPath(zk_path + "/notifies/" + worker);
+            }
+
+            mutex.release();
         }
 
         // This method reassign the tasks to the workers
@@ -323,7 +436,7 @@ public class ZkTasksHandler extends TasksHandler {
 
         @Override
         public void process(WatchedEvent watchedEvent) throws Exception {
-            System.out.println(Thread.currentThread().getId() + " [WATCH] MyTasksWatcher: " + watchedEvent);
+            System.out.println(Thread.currentThread().getId() + " [WATCH] TasksWatcher: " + watchedEvent);
             Watcher.Event.EventType type = watchedEvent.getType();
 
             if (type.equals(Watcher.Event.EventType.NodeDataChanged)) {
@@ -342,8 +455,36 @@ public class ZkTasksHandler extends TasksHandler {
             }
 
             if (client.getState().equals(CuratorFrameworkState.STARTED)) {
-                client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/workers/" + hostname);
+                client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/tasks/" + hostname);
             }
+        }
+    }
+
+    private class NotifyWatcher implements CuratorWatcher {
+
+        @Override
+        public void process(WatchedEvent watchedEvent) throws Exception {
+            System.out.println(Thread.currentThread().getId() + " [WATCH] NotifyWacther: " + watchedEvent);
+            Watcher.Event.EventType type = watchedEvent.getType();
+
+            System.out.println(watchedEvent.getType().getIntValue() + "      " + Watcher.Event.EventType.NodeDeleted.getIntValue());
+            if (type.equals(Watcher.Event.EventType.NodeDeleted)) {
+                System.out.println("New notify! Running job id: " + job_id);
+
+                mustWork();
+
+                if (client.getState().equals(CuratorFrameworkState.STARTED)) {
+                    client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/notifies/" + hostname, String.valueOf("Job ID: " + job_id).getBytes());
+                    client.getData().usingWatcher(notifyWatcher).forPath(zk_path + "/notifies/" + hostname);
+                }
+
+                job_id++;
+                synchronized (notWorkers) {
+                    notWorkers.notifyAll();
+                }
+            }
+
+
         }
     }
 }
