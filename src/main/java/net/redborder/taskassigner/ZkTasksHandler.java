@@ -65,7 +65,7 @@ public class ZkTasksHandler extends TasksHandler {
         client = null;
 
         this.zkHosts = zkHosts;
-        this.zk_path = task_zk_path;
+        this.zk_path = task_zk_path + "/clusterizer";
 
         tasksAssigner.init();
         tasksAssigner.start();
