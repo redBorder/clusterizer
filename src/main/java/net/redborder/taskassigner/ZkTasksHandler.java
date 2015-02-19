@@ -310,7 +310,6 @@ public class ZkTasksHandler extends TasksHandler {
                 Random r = new Random();
                 String worker = workers.get(r.nextInt(workers.size()));
                 System.out.println(" --> Today must work [" + worker + "]");
-                System.out.println("SIZE: " + workers.size());
                 client.delete().forPath(zk_path + "/notifies/" + worker);
             }
 
@@ -467,7 +466,6 @@ public class ZkTasksHandler extends TasksHandler {
             System.out.println(Thread.currentThread().getId() + " [WATCH] NotifyWacther: " + watchedEvent);
             Watcher.Event.EventType type = watchedEvent.getType();
 
-            System.out.println(watchedEvent.getType().getIntValue() + "      " + Watcher.Event.EventType.NodeDeleted.getIntValue());
             if (type.equals(Watcher.Event.EventType.NodeDeleted)) {
                 System.out.println("New notify! Running job id: " + job_id);
 
