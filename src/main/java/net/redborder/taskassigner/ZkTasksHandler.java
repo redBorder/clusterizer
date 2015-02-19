@@ -43,7 +43,7 @@ public class ZkTasksHandler extends TasksHandler {
     private String zk_path;
 
     public ZkTasksHandler(String zkHosts) {
-        this(zkHosts, TASKS_ZK_PATH);
+        this(zkHosts, TASKS_ZK_PATH + "/clusterizer");
     }
 
     public ZkTasksHandler(String zkHosts, String task_zk_path) {
