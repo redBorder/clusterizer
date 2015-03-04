@@ -1,4 +1,4 @@
-package net.redborder.taskassigner;
+package net.redborder.clusterizer;
 
 import java.util.HashMap;
 import java.util.Map;

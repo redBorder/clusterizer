@@ -1,4 +1,4 @@
-package net.redborder.taskassigner;
+package net.redborder.clusterizer;
 
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
@@ -15,7 +15,6 @@ import org.apache.zookeeper.Watcher;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.net.InetAddress;
-import java.nio.ByteBuffer;
 import java.util.*;
 
 /**
@@ -36,10 +35,9 @@ public class ZkTasksHandler extends TasksHandler {
     NotifyWatcher notifyWatcher;
 
     Object notWorkers;
-
     Long job_id;
 
-    private static final String TASKS_ZK_PATH = "/rBtask";
+    private static final String TASKS_ZK_PATH = "";
     private String zk_path;
 
     public ZkTasksHandler(String zkHosts) {
@@ -69,7 +67,6 @@ public class ZkTasksHandler extends TasksHandler {
 
         tasksAssigner.init();
         tasksAssigner.start();
-
 
         try {
             hostname = InetAddress.getLocalHost().getHostName();

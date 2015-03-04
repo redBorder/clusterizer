@@ -1,7 +1,6 @@
-package net.redborder.taskassigner;
+package net.redborder.clusterizer;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Created by crodriguez on 9/12/14.
