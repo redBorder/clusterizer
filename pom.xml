@@ -7,7 +7,7 @@
     <version>0.1-SNAPSHOT</version>
 
     <scm>
-      <developerConnection>scm:git:ssh://gitlab/agomez/clusterizer.git</developerConnection>    
+      <developerConnection>scm:git:git@gitlab.redborder.lan:agomez/clusterizer.git</developerConnection>    
     </scm>
 
     <distributionManagement>
