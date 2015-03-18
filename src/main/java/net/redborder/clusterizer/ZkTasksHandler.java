@@ -78,7 +78,7 @@ public class ZkTasksHandler extends TasksHandler {
 
     @Override
     public void end() {
-        if (client != null) {
+        if (client.getState().equals(CuratorFrameworkState.STARTED)) {
             try {
                 latch.close();
                 tasksAssigner.close();
@@ -87,7 +87,6 @@ public class ZkTasksHandler extends TasksHandler {
                 e.printStackTrace();
             }
             client.close();
-            client = null;
         }
     }
 
