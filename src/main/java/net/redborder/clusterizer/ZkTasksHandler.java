@@ -14,6 +14,7 @@ import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.codehaus.jackson.map.ObjectMapper;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.util.*;
 
@@ -176,15 +177,21 @@ public class ZkTasksHandler extends TasksHandler {
             client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/tasks/" + hostname);
 
             // Read data from ZK and assign those tasks
-            List<Map<String, Object>> maps = (List<Map<String, Object>>) mapper.readValue(zkData, List.class);
-            List<Task> tasks = new ArrayList<>();
+            List<Map<String, Object>> maps = null;
 
-            for (Map<String, Object> map : maps) {
-                MappedTask task = new MappedTask(map);
-                tasks.add(task);
+            try {
+                maps = (List<Map<String, Object>>) mapper.readValue(zkData, List.class);
+                List<Task> tasks = new ArrayList<>();
+
+                for (Map<String, Object> map : maps) {
+                    MappedTask task = new MappedTask(map);
+                    tasks.add(task);
+                }
+
+                setAssignedTasks(tasks);
+            } catch (IOException e) {
+                System.out.println("I can't recover old state, remove it and start again!");
             }
-
-            setAssignedTasks(tasks);
         }
 
         mutex.release();
