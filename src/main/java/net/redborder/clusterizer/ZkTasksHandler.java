@@ -170,17 +170,24 @@ public class ZkTasksHandler extends TasksHandler {
             client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/tasks/" + hostname);
             client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/tasks/" + hostname);
         } else {
-            byte[] zkData = client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/tasks/" + hostname);
+            byte[] zkData = client.getData().forPath(zk_path + "/tasks/" + hostname);
             client.delete().forPath(zk_path + "/tasks/" + hostname);
-            System.out.println("Exists old state, I recovery and create again!");
-            client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/tasks/" + hostname, zkData);
-            client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/tasks/" + hostname);
+            System.out.println("Exists old state, I try recovery and create again!");
 
             // Read data from ZK and assign those tasks
             List<Map<String, Object>> maps = null;
 
             try {
                 maps = (List<Map<String, Object>>) mapper.readValue(zkData, List.class);
+                client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/tasks/" + hostname, zkData);
+            } catch (IOException e) {
+                System.out.println("I can't recover old state, remove it and start again!");
+                client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/tasks/" + hostname, "[]".getBytes());
+            }
+
+            client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/tasks/" + hostname);
+
+            if (maps != null) {
                 List<Task> tasks = new ArrayList<>();
 
                 for (Map<String, Object> map : maps) {
@@ -189,8 +196,6 @@ public class ZkTasksHandler extends TasksHandler {
                 }
 
                 setAssignedTasks(tasks);
-            } catch (IOException e) {
-                System.out.println("I can't recover old state, remove it and start again!");
             }
         }
 
@@ -304,7 +309,7 @@ public class ZkTasksHandler extends TasksHandler {
             } else {
                 if (workers.size() == 0) {
                     System.out.println("Nobody wants work, I will forget this job");
-                }else{
+                } else {
                     someone = true;
                 }
             }
