@@ -332,7 +332,7 @@ public class ZkTasksHandler extends TasksHandler {
 
             // Lets get the sensors and the workers available
             List<Task> tasks = getTasks();
-            List<String> workers = client.getChildren().forPath(zk_path + "/workers");
+            List<String> workers = client.getChildren().forPath(zk_path + "/tasks");
 
             HashMap<String, Object> assignments = new HashMap<>();
             int workers_length = workers.size();
@@ -371,7 +371,7 @@ public class ZkTasksHandler extends TasksHandler {
                 String worker_name = assignedTasks.getKey();
 
                 task_assigned += worker_name + " (" + task_list + ") ";
-                client.setData().forPath(zk_path + "/workers/" + worker_name, mapper.writeValueAsBytes(task_list));
+                client.setData().forPath(zk_path + "/tasks/" + worker_name, mapper.writeValueAsBytes(task_list));
             }
             System.out.println(task_assigned);
 
@@ -480,8 +480,10 @@ public class ZkTasksHandler extends TasksHandler {
                 mustWork();
 
                 if (client.getState().equals(CuratorFrameworkState.STARTED)) {
-                    client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/notifies/" + hostname, String.valueOf("Job ID: " + job_id).getBytes());
-                    client.getData().usingWatcher(notifyWatcher).forPath(zk_path + "/notifies/" + hostname);
+                    if (client.checkExists().forPath(zk_path + "/notifies/" + hostname) == null) {
+                        client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/notifies/" + hostname, String.valueOf("Job ID: " + job_id).getBytes());
+                        client.getData().usingWatcher(notifyWatcher).forPath(zk_path + "/notifies/" + hostname);
+                    }
                 }
 
                 job_id++;
