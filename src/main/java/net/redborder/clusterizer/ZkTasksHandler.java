@@ -268,12 +268,14 @@ public class ZkTasksHandler extends TasksHandler {
 
     @Override
     public Integer numWorkers() {
-        Integer num;
+        Integer num = 1;
         try {
-            num = client.getChildren().forPath(zk_path + "/workers").size();
+            if (client.getState().equals(CuratorFrameworkState.STARTED)) {
+                num = client.getChildren().forPath(zk_path + "/workers").size();
+            }
         } catch (Exception e) {
             e.printStackTrace();
-            num = 0;
+            num = 1;
         }
         return num;
     }
