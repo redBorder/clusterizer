@@ -178,15 +178,17 @@ public class ZkTasksHandler extends TasksHandler {
             List<Map<String, Object>> maps = null;
 
             try {
-                maps = (List<Map<String, Object>>) mapper.readValue(zkData, List.class);
-                client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/tasks/" + hostname, zkData);
+                //maps = (List<Map<String, Object>>) mapper.readValue(zkData, List.class);
+
+                //Not recover!!!!!
+                client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/tasks/" + hostname, "[]".getBytes());
             } catch (IOException e) {
                 System.out.println("I can't recover old state, remove it and start again!");
                 client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/tasks/" + hostname, "[]".getBytes());
             }
 
             client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/tasks/" + hostname);
-
+/*
             if (maps != null) {
                 List<Task> tasks = new ArrayList<>();
 
@@ -197,6 +199,7 @@ public class ZkTasksHandler extends TasksHandler {
 
                 setAssignedTasks(tasks);
             }
+            */
         }
 
         mutex.release();
@@ -264,6 +267,10 @@ public class ZkTasksHandler extends TasksHandler {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public CuratorFramework getCuratorClient(){
+        return client;
     }
 
     @Override
@@ -378,8 +385,11 @@ public class ZkTasksHandler extends TasksHandler {
             System.out.println(task_assigned);
 
             // Finishing, release the barrier
+            tasks.clear();
             mutex.release();
         }
+
+
 
         @Override
         public void run() {

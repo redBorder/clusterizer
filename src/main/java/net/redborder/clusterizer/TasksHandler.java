@@ -12,7 +12,6 @@ public abstract class TasksHandler {
     List<TasksChangedListener> listenersTask;
     List<NotifyListener> listenersNotify;
     List<Task> tasks;
-    List<Task> assignedTasks;
     Random random;
 
 
@@ -36,9 +35,6 @@ public abstract class TasksHandler {
         return tasks;
     }
 
-    public List<Task> getAssignedTasks() {
-        return assignedTasks;
-    }
 
     public void setTasks(List<Task> tasks) {
         this.tasks = tasks;
@@ -59,8 +55,6 @@ public abstract class TasksHandler {
         taskStr = taskStr + "]";
 
         System.out.println("Updated node tasks: " + taskStr);
-
-        this.assignedTasks = tasks;
 
         for (TasksChangedListener listener : listenersTask) {
             listener.updateTasks(tasks);
