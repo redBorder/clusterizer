@@ -7,7 +7,7 @@
     <version>0.3.3-SNAPSHOT</version>
 
     <scm>
-      <developerConnection>scm:git:git@gitlab.redborder.lan:agomez/clusterizer.git</developerConnection>    
+      <developerConnection>scm:git:git@gitlab.redborder.lan:bigdata/clusterizer.git</developerConnection>
       <tag>HEAD</tag>
   </scm>
 
