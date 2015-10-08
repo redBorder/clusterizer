@@ -170,9 +170,9 @@ public class ZkTasksHandler extends TasksHandler {
             client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/tasks/" + hostname);
             client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/tasks/" + hostname);
         } else {
-            byte[] zkData = client.getData().forPath(zk_path + "/tasks/" + hostname);
+            //byte[] zkData = client.getData().forPath(zk_path + "/tasks/" + hostname);
             client.delete().forPath(zk_path + "/tasks/" + hostname);
-            System.out.println("Exists old state, I try recovery and create again!");
+            //System.out.println("Exists old state, I try recovery and create again!");
 
             // Read data from ZK and assign those tasks
             List<Map<String, Object>> maps = null;
@@ -257,7 +257,9 @@ public class ZkTasksHandler extends TasksHandler {
 
     @Override
     public void wakeup() {
-        tasksAssigner.assign();
+        if(isLeader()) {
+            tasksAssigner.assign();
+        }
     }
 
     @Override
