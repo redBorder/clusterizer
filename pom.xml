@@ -4,11 +4,11 @@
     <name>clusterizer</name>
     <groupId>net.redborder</groupId>
     <artifactId>clusterizer</artifactId>
-    <version>0.3.5</version>
+    <version>0.3.6-SNAPSHOT</version>
 
     <scm>
       <developerConnection>scm:git:git@gitlab.redborder.lan:bigdata/clusterizer.git</developerConnection>
-      <tag>clusterizer-0.3.5</tag>
+      <tag>HEAD</tag>
   </scm>
 
     <distributionManagement>
