@@ -70,7 +70,7 @@ public class ZkTasksHandler extends TasksHandler {
         tasksAssigner.start();
 
         try {
-            hostname = InetAddress.getLocalHost().getHostName();
+            hostname = InetAddress.getLocalHost().getCanonicalHostName();
             init();
         } catch (Exception e) {
             e.printStackTrace();
