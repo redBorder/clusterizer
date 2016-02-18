@@ -11,7 +11,7 @@ public abstract class TasksHandler {
 
     List<TasksChangedListener> listenersTask;
     List<NotifyListener> listenersNotify;
-    List<Task> tasks;
+    List<Task> tasks = new ArrayList<>();
     Random random;
 
 
@@ -37,7 +37,8 @@ public abstract class TasksHandler {
 
 
     public void setTasks(List<Task> tasks) {
-        this.tasks = tasks;
+        this.tasks.clear();
+        this.tasks.addAll(tasks);
     }
 
     public void mustWork() {

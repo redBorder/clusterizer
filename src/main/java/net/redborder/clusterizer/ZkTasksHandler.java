@@ -8,6 +8,8 @@ import org.apache.curator.framework.imps.CuratorFrameworkState;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import org.apache.curator.framework.recipes.leader.LeaderLatchListener;
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreMutex;
+import org.apache.curator.framework.state.ConnectionState;
+import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.curator.retry.RetryNTimes;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.WatchedEvent;
@@ -37,6 +39,7 @@ public class ZkTasksHandler extends TasksHandler {
 
     Object notWorkers;
     Long job_id;
+    RecoverFromFailed recoverFromFailed;
 
     private static final String TASKS_ZK_PATH = "";
     private String zk_path;
@@ -77,6 +80,10 @@ public class ZkTasksHandler extends TasksHandler {
         }
     }
 
+    public void setRecoverFromFailed(RecoverFromFailed recoverFromFailed){
+        this.recoverFromFailed = recoverFromFailed;
+    }
+
     @Override
     public void end() {
         if (client.getState().equals(CuratorFrameworkState.STARTED)) {
@@ -102,16 +109,7 @@ public class ZkTasksHandler extends TasksHandler {
         }
     }
 
-    private void init() throws Exception {
-        System.out.println("Initialite ZkTasksHandler ....");
-        // Connect to ZK
-        client = CuratorFrameworkFactory.newClient(zkHosts, retryPolicy);
-        client.start();
-
-        // Create the leader latch and the barrier
-        latch = new LeaderLatch(client, zk_path + "/latch");
-        mutex = new InterProcessSemaphoreMutex(client, zk_path + "/mutex");
-
+    private void prepare() throws Exception {
         // First, if the barrier is up, we must wait because
         // a leader is currently setting up the tasks for other workers
         mutex.acquire();
@@ -127,14 +125,76 @@ public class ZkTasksHandler extends TasksHandler {
         initTasks();
         initNotifies();
 
-        // Start latch so a leader can be selected
-        latch.start();
         System.out.println("ZkTasksHandler done!");
+    }
+    private void init() throws Exception {
+        System.out.println("Initialite ZkTasksHandler ....");
+        // Connect to ZK
+        client = CuratorFrameworkFactory.newClient(zkHosts, 5000, 60000, retryPolicy);
+
+        client.getConnectionStateListenable().addListener(new ConnectionStateListener() {
+            @Override
+            public void stateChanged(CuratorFramework curatorFramework, ConnectionState connectionState) {
+                System.out.println("Changed state to: " + connectionState.name());
+                try {
+                    if (connectionState.equals(ConnectionState.CONNECTED) || connectionState.equals(ConnectionState.RECONNECTED)) {
+
+                        try {
+                            prepare();
+                        } catch (Exception ex) {
+                            System.out.println("Error working with zookeeper, shutting down ...");
+                            end();
+                        }
+
+                        if (connectionState.equals(ConnectionState.RECONNECTED)) {
+                            List<Task> tasks = recoverFromFailed.recover();
+                            setTasks(tasks);
+                            wakeup();
+                        }
+                    }
+                }catch (Exception ex){
+                    ex.printStackTrace();
+                }
+            }
+        });
+
+        // Create the leader latch and the barrier
+        latch = new LeaderLatch(client, zk_path + "/latch");
+
+        // Leader latch listeners.
+        // When a new leader is assigned (because the leader has fallen) then the task
+        // must be assigned again.
+        latch.addListener(new LeaderLatchListener() {
+            @Override
+            public void isLeader() {
+                System.out.print("Im leading now, so lets assign the tasks again");
+
+                try {
+                    if (tasks.size() > 0) {
+                        wakeup();
+                        System.out.println("");
+                    } else {
+                        System.out.println(", but I haven't tasks to assign.");
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void notLeader() {
+                System.out.println("Im not the leader anymore");
+            }
+        });
+
+        mutex = new InterProcessSemaphoreMutex(client, zk_path + "/mutex");
+
+        client.start();
+        latch.start();
     }
 
     private void initWorkers() throws Exception {
         System.out.print("Initialite ZkTasksHandler[Workers] .... ");
-        mutex.acquire();
 
         if (client.checkExists().forPath(zk_path + "/workers") == null) {
             client.create().forPath(zk_path + "/workers");
@@ -149,15 +209,11 @@ public class ZkTasksHandler extends TasksHandler {
 
         // Set a watch over workers nodes
         client.getChildren().usingWatcher(workersWatcher).forPath(zk_path + "/workers");
-        mutex.release();
         System.out.println(" Done!");
     }
 
     private void initTasks() throws Exception {
         System.out.print("Initialite ZkTasksHandler[Tasks] .... ");
-        mutex.acquire();
-
-        tasks = new ArrayList<>();
 
         if (client.checkExists().forPath(zk_path + "/tasks") == null) {
             client.create().forPath(zk_path + "/tasks");
@@ -167,7 +223,7 @@ public class ZkTasksHandler extends TasksHandler {
         // Writing itself to the workers path will make the leader to assign this
         // instance a number of tasks to process
         if (client.checkExists().forPath(zk_path + "/tasks/" + hostname) == null) {
-            client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/tasks/" + hostname);
+            client.create().withMode(CreateMode.EPHEMERAL).forPath(zk_path + "/tasks/" + hostname, "[]".getBytes());
             client.getData().usingWatcher(tasksWatcher).forPath(zk_path + "/tasks/" + hostname);
         } else {
             //byte[] zkData = client.getData().forPath(zk_path + "/tasks/" + hostname);
@@ -202,40 +258,11 @@ public class ZkTasksHandler extends TasksHandler {
             */
         }
 
-        mutex.release();
-
-        // Leader latch listeners.
-        // When a new leader is assigned (because the leader has fallen) then the task
-        // must be assigned again.
-        latch.addListener(new LeaderLatchListener() {
-            @Override
-            public void isLeader() {
-                System.out.print("Im leading now, so lets assign the tasks again");
-
-                try {
-                    if (tasks.size() > 0) {
-                        wakeup();
-                        System.out.println("");
-                    } else {
-                        System.out.println(", but I haven't tasks to assign.");
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-
-            @Override
-            public void notLeader() {
-                System.out.println("Im not the leader anymore");
-            }
-        });
-
         System.out.println(" Done!");
     }
 
     private void initNotifies() throws Exception {
         System.out.print("Initialite ZkTasksHandler[Notifies] .... ");
-        mutex.acquire();
 
         if (client.checkExists().forPath(zk_path + "/notifies") == null) {
             client.create().forPath(zk_path + "/notifies");
@@ -251,7 +278,6 @@ public class ZkTasksHandler extends TasksHandler {
             client.getData().usingWatcher(notifyWatcher).forPath(zk_path + "/notifies/" + hostname);
         }
 
-        mutex.release();
         System.out.println(" Done! ");
     }
 
